@@ -251,7 +251,7 @@ def process_papers(files, chunk_size: int, chunk_overlap: int):
         os.unlink(tmp_path)
 
     # --- ChromaDB Vector Store ---
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-latest", google_api_key=api_key)
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001", google_api_key=api_key)
 
     # Use ephemeral client (in-memory)
     chroma_client = chromadb.EphemeralClient(
