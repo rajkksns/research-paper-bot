@@ -1,0 +1,7 @@
+.env
+__pycache__/
+*.pyc
+chroma_db/
+rag_capstone/
+venv/
+.streamlit/secrets.toml
