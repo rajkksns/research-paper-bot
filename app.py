@@ -258,12 +258,45 @@ def process_papers(files, chunk_size: int, chunk_overlap: int):
         settings=ChromaSettings(anonymized_telemetry=False)
     )
 
-    vectorstore = Chroma.from_documents(
-        documents=all_docs,
-        embedding=embeddings,
+    # Create empty collection, then add documents in throttled batches.
+    # Free-tier Gemini embeddings allow ~100 requests/minute, so we embed in
+    # small batches with a pause + exponential-backoff retry on 429/503 errors.
+    import time
+    vectorstore = Chroma(
+        embedding_function=embeddings,
         client=chroma_client,
         collection_name="research_papers",
     )
+
+    BATCH_SIZE = 50          # stay well under the 100/min free-tier cap
+    PAUSE_SECONDS = 30       # wait between batches so the per-minute quota resets
+
+    total = len(all_docs)
+    progress = st.progress(0.0, text=f"Embedding 0/{total} chunks...")
+    for start in range(0, total, BATCH_SIZE):
+        batch = all_docs[start:start + BATCH_SIZE]
+        for attempt in range(6):  # retry with exponential backoff
+            try:
+                vectorstore.add_documents(batch)
+                break
+            except Exception as e:
+                msg = str(e)
+                if ("429" in msg or "RESOURCE_EXHAUSTED" in msg
+                        or "503" in msg or "UNAVAILABLE" in msg):
+                    wait = min(60, 5 * (2 ** attempt))
+                    progress.progress(
+                        start / total,
+                        text=f"Rate limit hit - waiting {wait}s then retrying "
+                             f"(batch {start//BATCH_SIZE + 1})...",
+                    )
+                    time.sleep(wait)
+                    continue
+                raise  # a real error - surface it
+        done = min(start + BATCH_SIZE, total)
+        progress.progress(done / total, text=f"Embedded {done}/{total} chunks...")
+        if done < total:
+            time.sleep(PAUSE_SECONDS)  # respect the per-minute quota
+    progress.empty()
 
     # --- BM25 Index ---
     tokenized_corpus = [doc.page_content.lower().split() for doc in all_docs]
