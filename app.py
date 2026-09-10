@@ -251,7 +251,7 @@ def process_papers(files, chunk_size: int, chunk_overlap: int):
         os.unlink(tmp_path)
 
     # --- ChromaDB Vector Store ---
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001", google_api_key=api_key)
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-latest", google_api_key=api_key)
 
     # Use ephemeral client (in-memory)
     chroma_client = chromadb.EphemeralClient(
@@ -426,7 +426,7 @@ def format_docs(docs: list[Document]) -> str:
 def get_rag_chain(api_key: str):
     """Build the LCEL RAG chain."""
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+        model="gemini-flash-latest",
         google_api_key=api_key,
         temperature=0.1,
         streaming=True,
